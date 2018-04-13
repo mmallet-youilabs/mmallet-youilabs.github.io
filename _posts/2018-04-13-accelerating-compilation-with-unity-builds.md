@@ -1,6 +1,6 @@
 ---
 title:  "Accelerating Compilation with Unity Builds"
-layout: post
+author: mathieu_mallet
 ---
 
 Unity builds, not to be confused with the Unity Engine, combine multiple C++ files into a single translation unit. This can significantly reduce compilation time and library size. Starting with version 4.7.0, You.i Engine provides a CMake module to implement unity builds.

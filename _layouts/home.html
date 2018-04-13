@@ -13,6 +13,7 @@ layout: default
     <h2 class="post-list-heading">{{ page.list_title | default: "Posts" }}</h2>
     <ul class="post-list">
       {%- for post in site.posts -%}
+      {% assign author = site.data.authors[post.author] %}
       <li>
         {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
         <span class="post-meta">{{ post.date | date: date_format }}</span>
@@ -20,6 +21,9 @@ layout: default
           <a class="post-link" href="{{ post.url | relative_url }}">
             {{ post.title | escape }}
           </a>
+          {% if author %}
+            by <a href="{{ author.github }}" target="_blank">{{ author.name }}</a>
+          {% endif %}
         </h3>
         {%- if site.show_excerpts -%}
           {{ post.excerpt }}
