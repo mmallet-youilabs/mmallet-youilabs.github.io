@@ -2,7 +2,10 @@
 title:  "Understanding CYIAny"
 author: mathieu_mallet
 ---
-`CYIAny` is a You.i Engine One class that is poorly understood. While some people love its flexibility, others dislike the problems it cause while debugging. This post attemps to explain how `CYIAny` works, why it works this way, and how to better work with `CYIAny` instances.
+`CYIAny` is a You.i Engine One class that is poorly understood. While some people love its flexibility, others dislike the problems it cause while debugging. This post attempts to explain how `CYIAny` works, why it works this way, and how to better work with `CYIAny` instances.
+
+* TOC
+{:toc}
 
 # Description
 
@@ -30,22 +33,22 @@ class Cabinet
 Here, we want to create a `Cabinet` class that can contain multiple `File` objects. Each object has a specific name. This works because all each item in the cabinet is of a type that is known ahead of time. Now what if we wanted an even more general inventory container?
 
 ```c++
-class Closet
+class Inventory
 {
     std::map<CYIString, Item> m_items; // key is the item's tag
 };
 ```
 
-This works, but requires that all items stored in the closet inherit from `Item` (or implement the `Item` interface). What if we wanted to put wheels in the closet? Now the `Wheel` class has to subclass the `Item` class (or implement the `Item` interface), which would pollute the the `Wheel` class. What we really need is a way to store any type within the closet, without needing to specify the type ahead of time in the closet class. Enter `CYIAny`:
+This works, but requires that all items stored in the inventory inherit from `Item` (or implement the `Item` interface). What if we wanted to put wheels in the inventory? Now the `Wheel` class has to subclass the `Item` class (or implement the `Item` interface), which would pollute the the `Wheel` class. What we really need is a way to store any type within the inventory, without needing to specify the type ahead of time in the `Inventory` class. Enter `CYIAny`:
 
 ```c++
-class Closet
+class Inventory
 {
     std::map<CYIString, CYIAny> m_items; // key is the item's tag
 };
 ```
 
-Now, users can store any type of item in the `Closet` type, and the `Closet` type does not need to know what those types are. Users that take items _out_ of the `Closet`, however, will need to know what the type is.
+Now, users can store any type of item in the `Inventory` type, and the `Inventory` type does not need to know what those types are. Users that take items _out_ of the `Inventory`, however, will need to know what the type is.
 
 This is the use of `CYIAny`: it allows classes to be written without needing to know what the types that it will contain ahead of time.
 
@@ -74,7 +77,7 @@ private:
 };
 ```
 
-The `Set` function would assign create a copy of the `value` parameter and assign it to `m_pData`, and assign the type of the value to `m_type`. To get the value out, a user would call `Get()` and provite a type (e.g. `Get<CYIString>()`). The `Any` class would check if the provided type matches the contained type, and if so return a copy of the contained type.
+The `Set` function would assign create a copy of the `value` parameter and assign it to `m_pData`, and assign the type of the value to `m_type`. To get the value out, a user would call `Get()` and provide a type (e.g. `Get<CYIString>()`). The `Any` class would check if the provided type matches the contained type, and if so return a copy of the contained type.
 
 This would be one way to do it, but this way has a major drawback: every value assigned to the `Any` class would result in a heap allocation, even if the stored type is small. This is both wasteful and slow: more memory is needed to store the data, and heap allocations are somewhat slow (compared to stack allocations).
 
@@ -112,6 +115,62 @@ The C++17 standard adds an 'any' implementation as `std::any`. While the specifi
 
 The std::any implementation lives under the `<any>` header. Since C++17 was only recently ratified, some compilers may still be using `<experimental\any>`.
 
+# Using CYIAny
+
+Storing a type in CYIAny is simple:
+
+```c++
+CYIAny any;
+any = CYIString("Hello world!");
+```
+
+In this example, a `CYIAny` instance is created and is empty (by default). A `CYIString` instance is then assigned to it. To retrieve the value, the type must be specified:
+
+```c++
+const CYIString &value = any.Get<CYIString>();
+```
+
+In this case, the value is being read by reference to avoid making a copy of it. The reference will remain valid as long as the the `CYIAny` is in scope and is not modified. Note that modifying the `any` instance (e.g. by assigning a new value to `any`) will result in the `value` reference being invalidated.
+
+If the incorrect type is specified when calling `Get()`, an assert will occur:
+
+```c++
+int intValue = any.Get<int>(); // assert! (but only in debug)
+```
+
+To avoid the assert, we either need to use the correct type or perform a check to ensure that the `CYIAny` instance contains the expected type:
+
+```c++
+if (any.ContainsType<int>())
+{
+    int intValue = any.Get<int>(); // no assert, but this code path wouldn't be taken if 'any' contains a CYIString
+}
+```
+
+Note that when assigning a numeric literal to a `CYIAny`, it isn't always clear what the type being stored is. For example:
+
+```c++
+CYIAny any = 42; // what type is this? int? unsigned int?
+```
+
+In this example, the type `int` is being stored. But it's better to disambiguate with the type that we want:
+
+```c++
+CYIAny any = (YI_UIN64)42;
+```
+
+Note that when retrieving a type from a `CYIAny` instance, the type must match exactly. A value cannot be retieved from a `CYIAny` instance using the base class of the stored type. For example:
+
+```c++
+class Base {};
+class Derived : public Base {};
+
+Derived derived;
+CYIAny any = &derived; // storing the address of derived -- stored type is Derived*
+...
+Base *pBase = any.Get<Base*>(); // asserts! 'any' contains a Derived* object, not a Base* object
+```
+
 # Debugging
 
 `CYIAny` implements debugging-time type safety. If the `CYIAny::Get<T>()` function is called with a type other than the contained type, an assert is triggered. When necessary, the type contained in `CYIAny` can be checked using `CYIAny::ContainsType<T>()`.
@@ -144,6 +203,8 @@ When viewed in Xcode, the `exampleAny` variable then becomes:
 
 ![CYIAny viewed in debugger with summary expression](/assets/img/cyiany/cyiany_in_debugger_with_summary_expression.png)
 
+Note that there appears to be two sets of quotes in the string, but none actually exist in the stored string: one set of quotes is added by the `CYIObjectPrinter` class, and one set of quotes is added by Xcode/LLDB.
+
 `CYIAny::ToString()` depends on the type being 'printable' using `operator<<` and uses `CYIObjectPrinter` to do the conversion to string. Support for custom types can be added by implementing the following function:
 
 ```std::ostream &operator<<(std::ostream &stream, const MyCustomType &val);```
@@ -167,7 +228,8 @@ There are a few other drawbacks to this debugging method:
 
 The difficult to debug is likely the biggest drawback of `CYIAny`, but there are a few others:
 - `CYIAny` was implemented before C++11 support was added to You.i Engine One. As a result, it has poor (or no) support for move operations.
-- `CYIAny` cannot contain instances of itself. Interestingly, this drawback is not present in `std::any`.
+- `CYIAny` cannot contain instances of itself.
+- Inheritance works poorly with `CYIAny`: retrieving a type from a `CYIAny` instance requires the exact type of the object that was store -- a base class cannot be used.
 
 # What about variants?
 
