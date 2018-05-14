@@ -211,13 +211,13 @@ Note that there appears to be two sets of quotes in the string, but none actuall
 
 ## Debugging using unions
 
-This method requires changes to be made to the `YiAny.h` file, which isn't practical for users of You.i Engine One. However, the upcoming 5.0 version of You.i Engine One is expected to support debugging this way 'out of the box' (see [US-7692](https://youilabs.atlassian.net/browse/US-7692)).
+This method requires changes to be made to the `YiAny.h` file, which isn't practical for users of You.i Engine One. However, the upcoming 5.0 version of You.i Engine One will support debugging this way 'out of the box' (see [US-7692](https://youilabs.atlassian.net/browse/US-7692)).
 
 When debugging with an union, an union is created and contains the preallocated `CYIAny` storage. Typical/expected types are added to this union, which allows the debugger to show the type values. For example:
 
 ![CYIAny viewed in debugger with union](/assets/img/cyiany/cyiany_in_debugger_with_union.png)
 
-The user, however, needs to know what the contained type is in order to know which entry to look at. This can be done either with an extra 'type name' field, or by relying on the function types in the functions table. The 'type name' field can be populated with the result of `typeid(value).name()`, though the result of that function call is compiler-specific (and not always human-readable). In the previous example, the type is shown to be '9CYIString' (meaning `CYIString`), and the content can be examined under the `m_pStringValue` entry.
+The user, however, needs to know what the contained type is in order to know which entry to look at. This can be done either with an extra 'type name' field, or by relying on the function types in the functions table. The 'type name' field can be populated with the result of `typeid(value).name()`, though the result of that function call is compiler-specific (and not always human-readable). In the previous example, the type is shown to be '9CYIString' (meaning `CYIString`), and the content can be examined under the `m_pStringValue` entry. On platforms that use GCC or Clang, the type must be demangled to get a readable type.
 
 There are a few other drawbacks to this debugging method:
 - The size of types can differ between platforms, which makes it difficult to predict if a type would be allocated within the storage or in the heap. For example, `std::string` has a different size between gcc and clang (since clang makes use of small buffer optimization).
