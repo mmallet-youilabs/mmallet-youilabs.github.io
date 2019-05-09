@@ -10,29 +10,99 @@
 
   <!-- Use the `GitgraphJS` global variable to create your graph -->
   <script>
+    options = {
+      "options.template": "black-arrow"
+    }
+
     // Get the graph container HTML element.
     const graphContainer = document.getElementById("graph-container");
 
     // Instantiate the graph.
-    const gitgraph = GitgraphJS.createGitgraph(graphContainer);
+    const gitgraph = GitgraphJS.createGitgraph(graphContainer, {
+      template : "blackarrow",
+      // mode: "compact",
+    });
 
-    // Simulate git commands with Gitgraph API.
-    const master = gitgraph.branch("master");
-    master.commit("Initial commit");
-
+    // Init develop and release
     const develop = gitgraph.branch("develop");
-    develop.commit("Add TypeScript");
+    develop.commit({ messageDisplay: false }).commit()
+    const release = develop.branch("release")
+    release.commit()
 
-    const aFeature = gitgraph.branch("a-feature");
-    aFeature
-      .commit("Make it work")
-      .commit("Make it right")
-      .commit("Make it fast");
+    // Assume the develop and release branches have been going on for a while
+    develop.commit()
+    release.commit()
+    develop.commit()
+    release.commit()
+    develop.commit()
 
-    develop.merge(aFeature);
-    develop.commit("Prepare v1");
+    // Branch for 5.2.0
+    release.merge(develop)
 
-    master.merge(develop).tag("v1.0.0");
+    // Add release bugfix PR
+    const releaseBugfix = release.branch("bugfix")
+    releaseBugfix.commit()
+    release.merge(releaseBugfix)
+    develop.merge(release)
+
+    // More commits on develop
+    develop.commit().commit()
+
+    release.commit()
+    release.tag("5.2.0")
+    patch = gitgraph.branch("release_5.2.1")
+    // Merge 5.2.0 into develop after release
+    develop.merge(release)
+
+    develop.commit().commit()
+
+    // Patch work for 5.2.1
+    patch.commit("bugfix")
+    patch.tag("5.2.1")
+    develop.merge(patch)
+
+    develop.commit()
+
+    // Merge develop into release for 5.3.0 work
+    release.merge(develop);
+    develop.merge(release)
+
+    develop.commit()
+
+    // Simple release with no fixes or anything
+    release.tag("5.3.0")
+    // Work continues on develop
+    develop.commit({ subject: 'Bad commit', dotText: '🙀' }).commit()
+
+    // New release starting
+    release.merge(develop)
+
+    develop.commit()
+
+    release.commit() // ({ subject: 'Revert bad commit', dotText: '!🙀' })
+    // Patch that comes out after the fact
+    patch = gitgraph.branch("release_5.4.1")
+    release.tag("5.4.0")
+
+    develop.merge(release)
+
+    develop.commit()
+
+    release.merge(develop)
+
+    // Do a release for the patch. We need to merge back to release, and release into develop.
+    patch.commit()
+    release.merge(patch)
+    develop.merge(release)
+    patch.tag("5.4.1")
+
+    // Now do a release for the release branch.
+    release.tag("5.5.0")
+
+    // Keep going
+    develop.commit()
+    release.commit()
+
   </script>
 </body>
 </html>
